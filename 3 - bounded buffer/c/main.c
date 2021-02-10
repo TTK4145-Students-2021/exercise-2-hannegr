@@ -58,7 +58,7 @@ void buf_push(struct BoundedBuffer* buf, int val){
     - inkrementerer den tomme semaphoren, siden den nå bør ha plass til å kunne poppe (sier på en måte at det er nye elementer i bufferen med dette)
 
     */
-    if(buf->buf->capacity != 0){
+    if(buf->buf->capacity > 3){
     sem_wait(&buf->full);
     rb_push(buf->buf, val); 
     sem_post(&buf->full); //unlocks the semaphore by incrementing it. 
@@ -95,15 +95,16 @@ int buf_pop(struct BoundedBuffer* buf){
     /* Hva tror jeg funksjonen min gjør? 
     - Sjekker om bufferen har elementer i seg 
     - dekrementerer den tomme semaphoren når den har plass 
-    - inkrementerer den fulle semaphoren, siden den nå har plass til å legge til en ny
-    - inkrementerer den tomme semaphoren, for å vise at den er ferdig. 
+    - dekrementerer den tomme semaphoren, siden den nå har plass til å legge til en ny
+    - inkrementerer den fulle semaphoren, for å vise at den er ferdig. 
     */
     // TODO: same, but different?
     if(buf->buf->length != 0){
         sem_wait(&buf->empty);
     
         int val = rb_pop(buf->buf);  
-        sem_trywait(&buf->empty);
+        sem_wait(&buf->empty); 
+        sem_post(&buf->full); 
 
 
         sem_post(&buf->empty); 
