@@ -26,15 +26,7 @@ struct BoundedBuffer* buf_new(int size){
     sem_init(&buf->full, 0, size); 
     // full: the semaphore-element given in bounded buffer, 0: any threads can use the semaphore, size: the initial value for the semaphore.
     sem_init(&buf->empty, 0, 0); 
-    //empty: the semaphore-element given in bounded buffer, 0: any threads can use the semaphore,0 is the initial value for the semaphore. 
-   
-
-
-
-    //int    sem_init(sem_t *, int, unsigned int);
-    //sem_init(&buf->full,  0, /*starting value?*/);
-	//sem_init(&buf->empty, 0, /*starting value?*/);
-    
+    //empty: the semaphore-element given in bounded buffer, 0: any threads can use the semaphore,0 is the initial value for the semaphore.   
     return buf;    
 }
 
@@ -53,16 +45,20 @@ void buf_push(struct BoundedBuffer* buf, int val){
     /*Hva tror jeg funksjonen min gjør? 
     - sjekker først om den har kapasitet til å legge til flere tall 
     - dekrementerer den fulle semaphoren når den har plass 
-    - pusher den nye verdien når den kan det 
+    - får tak i nøkkelen mtx, for å si at den tråden skal jobbe nå
+    - pusher verdien inn 
+    - låser opp, da den er ferdig
+    - inkrementerer den 
     - inkrementerer semaphoren når den er ferdig 
-    - inkrementerer den tomme semaphoren, siden den nå bør ha plass til å kunne poppe (sier på en måte at det er nye elementer i bufferen med dette)
+    - inkrementerer semaphore empty for å si at nå er det et til element i bufferen som kan poppes 
 
     */
-    if(buf->buf->capacity > 3){
-    sem_wait(&buf->full);
-    rb_push(buf->buf, val); 
-    sem_post(&buf->full); //unlocks the semaphore by incrementing it. 
-    sem_post(&buf->empty); //increments the empty buffer, since it starts on 0, so it knows that it can be used. 
+    if(buf->buf->capacity != 0){
+        sem_wait(&buf->full);
+        pthread_mutex_lock(&buf->mtx);
+        rb_push(buf->buf, val); 
+        pthread_mutex_unlock(&buf->mtx);
+        sem_post(&buf->empty); 
     }
 
 
@@ -70,80 +66,27 @@ void buf_push(struct BoundedBuffer* buf, int val){
 
 
 
-    /*
-    while(buf->buf->capacity == 0){
-        //do nothing, just wait 
-    }
-    //waits for the capacity to be a positive number, so that it can add a number. 
-
-
-
-    // TODO: make sure there is no concurrent access to the buffer internals
-    sem_wait(&buf->full);
-    //decrements the semaphore when it can be used
-
-    rb_push(buf->buf, val);
-    
-    
-    // TODO: signal that there are new elements in the buffer   
-    sem_post(&buf->full); //unlocks the semaphore by incrementing it. 
-    sem_post(&buf->empty); //increments the empty buffer, since it starts on 0, so it knows that it can be used. 
-    */
-
-
 int buf_pop(struct BoundedBuffer* buf){
-    /* Hva tror jeg funksjonen min gjør? 
-    - Sjekker om bufferen har elementer i seg 
-    - dekrementerer den tomme semaphoren når den har plass 
-    - dekrementerer den tomme semaphoren, siden den nå har plass til å legge til en ny
-    - inkrementerer den fulle semaphoren, for å vise at den er ferdig. 
+    /* Hva gjør funksjonen min? 
+    - Sjekker om bufferen har elementer i seg, ved å finne lengden
+    - dekrementerer dem tomme semaphoren når den har plass
+    - Får tak i nøkkelen mtx, for å si at det er den tråden som popper som trenger å jobbe nå 
+    - fjerner verdien fra bufferen 
+    - låser opp mutexen igjen slik at andre tråder kan kjøre 
+    - inkrementerer semaphore full, for å si at det nå er en til plass i bufferen
     */
     // TODO: same, but different?
     if(buf->buf->length != 0){
         sem_wait(&buf->empty);
-    
+        pthread_mutex_lock(&buf->mtx); 
         int val = rb_pop(buf->buf);  
-        sem_wait(&buf->empty); 
+        pthread_mutex_unlock(&buf->mtx); 
         sem_post(&buf->full); 
-
-
-        sem_post(&buf->empty); 
+        
         return val; 
     }
 
 }
-
-
-
-
-
-
-
-    //unblocks the semaphore by incrementing it 
-
-/*
-    }
-    while(buf->buf->length == 0){
-        //do nothing, just wait 
-    }
-    //waits for the buffer to be filled with at least one element before it pops. 
-
-    sem_wait(&buf->empty);
-    //decrements the semaphore when it can be used
-    
-    int val = rb_pop(buf->buf);  
-
-
-    sem_post(&buf->empty);  
-    //unblocks the semaphore by incrementing it 
-    
-    return val;
-    */
-
-
-
-
-
 
 void* producer(void* args){
     struct BoundedBuffer* buf = (struct BoundedBuffer*)(args);
@@ -174,11 +117,15 @@ int main(){
     
     pthread_t producer_thr;
     pthread_t consumer_thr;
-    pthread_create(&producer_thr, NULL, producer, buf);
-    pthread_create(&consumer_thr, NULL, consumer, buf);
     
+    pthread_create(&consumer_thr, NULL, consumer, buf);
+    pthread_create(&producer_thr, NULL, producer, buf);
+
+ 
     pthread_join(producer_thr, NULL);
     pthread_cancel(consumer_thr);
+    
+
     
     buf_destroy(buf);
     
