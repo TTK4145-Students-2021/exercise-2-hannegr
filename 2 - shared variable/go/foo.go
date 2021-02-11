@@ -17,7 +17,6 @@ package main
 import (
 	"fmt"
 	"runtime"
-	"sync"
 )
 
 func number_server(add <-chan int, sub <-chan int, read chan<- int) {
@@ -28,16 +27,15 @@ func number_server(add <-chan int, sub <-chan int, read chan<- int) {
 		select {
 		case num := <-add:
 			number += num
-			//ch1 <- num
 
 		case num2 := <-sub:
 			number -= num2
-		//ch2 <- num
 
 		case read <- number:
 			return
 
 		}
+
 	}
 }
 
@@ -51,9 +49,10 @@ func incrementer(add chan<- int, finished chan<- bool) {
 		add <- 1
 		finished <- true
 	}
+	//close(finished)
+	//defer close(add)
 	//TODO: signal that the goroutine is finished¨
 	//if(finished == true):
-	//	close(finished)
 
 }
 
@@ -62,6 +61,7 @@ func decrementer(sub chan<- int, finished chan<- bool) {
 		sub <- 1
 		finished <- true
 	}
+	//defer close(sub)
 	//TODO: signal that the goroutine is finished
 	//if(finished == true):
 	//	close(finished)
@@ -83,10 +83,12 @@ func main() {
 	go decrementer(ch2, ch4)
 
 	// TODO: block on finished from both "worker" goroutines
-	var wg sync.WaitGroup
-	wg.Wait()
-	close(ch3)
-	close(ch4)
+	<-ch4
+	<-ch3
+
+	//close(ch4)
+	//close(ch1)
+	//close(ch2)
 
 	fmt.Println("The magic number is:", <-read)
 }
