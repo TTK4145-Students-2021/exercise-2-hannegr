@@ -8,11 +8,7 @@ pthread_mutex_t mutex;
 // Note the return type: void*
 void* incrementingThreadFunction(){
     for (int j = 0; j < 1000000; j++) {
-	// TODO: sync access to i
-    //if(pthread_mutex_trylock(&mutex)){
-    //    i++; 
-    //    pthread_mutex_unlock(&mutex); 
-    //}
+	//synched access to i 
     pthread_mutex_lock(&mutex);
     i++;
     pthread_mutex_unlock(&mutex);
@@ -21,14 +17,8 @@ void* incrementingThreadFunction(){
 }
 
 void* decrementingThreadFunction(){
-    for (int j = 0; j < 500000; j++) {//999998
-        //I change the number here to 988, so that i should become -2.
-	// TODO: sync access to i
-    //if(pthread_mutex_trylock(&mutex)){
-    //    i--; 
-    //    pthread_mutex_unlock(&mutex); 
-   // }
-	//i--;
+    for (int j = 0; j < 1000000; j++) {
+    //synched access to i 
     pthread_mutex_lock(&mutex);
     i--;
     pthread_mutex_unlock(&mutex);
