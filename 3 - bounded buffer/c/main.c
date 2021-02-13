@@ -42,7 +42,7 @@ void buf_destroy(struct BoundedBuffer* buf){
 
 
 void buf_push(struct BoundedBuffer* buf, int val){   
-    /*Hva tror jeg funksjonen min gjør? 
+    /*Hva gjør funksjonen min?
     - sjekker først om den har kapasitet til å legge til flere tall 
     - dekrementerer den fulle semaphoren når den har plass 
     - får tak i nøkkelen mtx, for å si at den tråden skal jobbe nå
